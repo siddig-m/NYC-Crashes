@@ -1,0 +1,149 @@
+---
+title: "NYC_Car_Crashes_Lab5"
+output: html_document
+---
+
+```{r}
+# import data
+# install.packages("data.table")
+library(data.table)
+#crashes = as.data.frame(fread("./data/nyc_motor_crashes_2018.csv",
+ #                  select = c('CRASH DATE', 'LATITUDE', 'LONGITUDE')))
+
+# read in subsetted data set
+crashes = read.csv("./data/nyc_motor_vehicle_crashes_2018.csv")
+
+summary(crashes)
+
+# Remove any odd long and lat coordinates
+crashes <- crashes[crashes$latitude >= -90 & crashes$latitude <= 90, ]
+crashes <- crashes[crashes$longitude >= -180 & crashes$longitude <= 180, ]
+crashes <- crashes[crashes$longitude != 0 & crashes$latitude != 0,]
+
+
+crashes$longitude <- as.numeric(crashes$longitude)
+crashes$latitude <- as.numeric(crashes$latitude)
+```
+
+
+```{r}
+
+#install.packages("ggmap")
+#install.packages("ggplot2")
+library(ggplot2)
+library(ggmap)
+register_google(key = "AIzaSyBhHpnrFuM8iu5oXrJvmyvCDt_6tlTyZ0k")
+
+# Get background map for New York
+newyork <- get_map(location = "newyork", zoom = 11)
+
+# Basic point plot
+ggmap(newyork) + geom_point(data = crashes, aes(x = longitude, y = latitude), alpha = 0.1, size = 0.5)
+```
+Can't visualize the crashes very well. But very concentrated within Manhattan.
+
+
+```{r}
+
+# Get background map for New York
+ggmap(newyork, base_layer = ggplot(crashes, aes(x=longitude, y=latitude))) +
+stat_bin2d(bins = 100)
+
+
+ggmap(newyork, base_layer = "auto") +
+  stat_bin2d(data = crashes, aes(x = longitude, y = latitude), bins = 100)
+```
+```{r}
+ggmap(newyork, base_layer = "auto") +
+ stat_density2d(aes(x = longitude, y = latitude,fill = ..level..,alpha=..level..), bins = 10, geom = "polygon", data = crashes) +
+ scale_fill_gradient(low = "black", high = "red")
+
+
+```
+
+
+```{r}
+# get days of week from date column
+library(lubridate)
+crashes$D <- wday(crashes$crash_date, label = TRUE)
+
+
+```
+
+
+
+```{r}
+# save plot as png
+png(filename="nyc_crashes_by_day.png", width=600, height=600)
+
+# plot heat map over days 
+
+ggmap(newyork, base_layer = "auto") +
+ stat_density2d(aes(x = longitude, y = latitude,fill = ..level..,alpha=..level..), bins = 10, geom = "polygon", data = crashes) +
+ scale_fill_gradient(low = "black", high = "red") +
+ facet_wrap(~ D)+
+ labs(title = "New York City Motor Crashes in 2018 by Day")+
+ guides(alpha=FALSE) +
+ theme_bw() + theme(
+ axis.line = element_blank(),
+ axis.text = element_blank(),
+ axis.title=element_blank(),
+ axis.ticks = element_blank(),
+ legend.key = element_blank(),
+ panel.grid.major = element_blank(),
+ panel.grid.minor = element_blank(),
+ panel.border = element_blank(),
+ panel.background = element_blank())
+
+
+dev.off()
+```
+
+
+```{r}
+# create variable for
+crashes$season[crashes$crash_date > "2018-11-30"] = "winter"
+crashes$season[crashes$crash_date < "2018-03-01" & crashes$crash_date >= "2018-01-01" ] = "winter"
+crashes$season[crashes$crash_date < "2018-06-01" & crashes$crash_date >= "2018-03-01" ] = "spring"
+crashes$season[crashes$crash_date < "2018-09-01" & crashes$crash_date >= "2018-06-01" ] = "summer"
+crashes$season[crashes$crash_date < "2018-12-01" & crashes$crash_date >= "2018-09-01" ] = "autumn"
+crashes$seaon = as.factor(crashes$season)
+
+
+```
+
+```{r}
+# save plot as png
+png(filename="nyc_crashes_by_season.png", width=1000, height=1000)
+
+# plot
+ggmap(newyork, base_layer = "auto") +
+ stat_density2d(aes(x = longitude, y = latitude,fill = ..level..,alpha=..level..), bins = 10, geom = "polygon", data = crashes) +
+ scale_fill_gradient(low = "black", high = "red") +
+ facet_wrap(~ season)+
+ ggtitle("New York City Motor Crashes in 2018 by Season")+
+ guides(alpha=FALSE) +
+ theme_bw() + theme(
+ plot.title = element_text(size=22, face="bold", hjust = 0.5),
+ axis.line = element_blank(),
+ axis.text = element_blank(),
+ axis.title=element_blank(),
+ axis.ticks = element_blank(),
+ legend.key = element_blank(),
+ panel.grid.major = element_blank(),
+ panel.grid.minor = element_blank(),
+ panel.border = element_blank(),
+ panel.background = element_blank(),
+ strip.text.x = element_text(size = 18),
+ legend.key.size = unit(2, 'cm'),
+ legend.title = element_text(size=14))
+
+dev.off()
+
+```
+
+
+
+
+
+
